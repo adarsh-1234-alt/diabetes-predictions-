@@ -95,7 +95,6 @@ elif isinstance(shap_values, np.ndarray) and len(shap_values.shape) == 3:
 else:
     user_shap_values = shap_values[0]
 
-# Plotting the Graph
 fig, ax = plt.subplots(figsize=(8, 4))
 colors = ['red' if val > 0 else 'green' for val in user_shap_values]
 ax.barh(feature_names, user_shap_values, color=colors)
@@ -104,16 +103,30 @@ ax.set_title("Feature Impact for Current Patient")
 plt.axvline(0, color='black', linewidth=1)
 st.pyplot(fig)
 
-# Auto-generating Text Explanation
-st.markdown("### 📝 Graph Explanation")
-st.write("Red bars push the prediction towards 'Diabetic', while green bars push it towards 'Non-Diabetic'. Based on your specific vitals, here are the top 3 factors driving your result:")
+# --- Medical Context Logic ---
+st.markdown("### 📝 Detailed Explanation & Health Context")
+st.write("Red bars indicate factors increasing your risk, while green bars indicate factors lowering it. Here is a breakdown of your most impactful features compared to normal human limits:")
 
-# Pair features with their SHAP values and sort by absolute impact
+# Normal medical limits for context
+normal_limits = {
+    'Glucose': 140,       # mg/dL (post-meal normal limit)
+    'BloodPressure': 80,  # mm Hg (diastolic normal limit)
+    'BMI': 25.0,          # Healthy weight limit
+    'Insulin': 160        # mu U/ml (normal 2-hour limit)
+}
+
 feature_impacts = list(zip(feature_names, user_shap_values))
 feature_impacts.sort(key=lambda x: abs(x[1]), reverse=True)
 
 for feature, impact in feature_impacts[:3]:
+    user_val = user_input_df[feature].iloc[0]
+    
     if impact > 0:
         st.write(f"- 🔴 **{feature}** significantly **increased** your risk.")
+        # Check if we have a medical limit for this feature and if user exceeded it
+        if feature in normal_limits and user_val > normal_limits[feature]:
+            limit = normal_limits[feature]
+            exceeded_by_pct = ((user_val - limit) / limit) * 100
+            st.markdown(f"  > *Medical Note: Normal {feature} is up to **{limit}**. Your value is **{user_val}**, which exceeded the normal range by **{exceeded_by_pct:.1f}%**.*")
     else:
         st.write(f"- 🟢 **{feature}** actually **lowered** your risk.")
