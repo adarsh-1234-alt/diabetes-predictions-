@@ -172,7 +172,7 @@ def main_app():
 if not st.session_state['logged_in']:
     login_page()
 else:
-    main_app()import streamlit as st
+    main_app() import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
