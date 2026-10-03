@@ -17,7 +17,7 @@ HELP = {
     "DiabetesPedigreeFunction": "Family-history score (higher = stronger history)",
     "Age": "Age in years"}
 
-# ---------- Authentication (credentials live in st.secrets, not in code) ----------
+# ---------- Authentication ----------
 def login():
     if st.session_state.get("auth"):
         return True
@@ -27,8 +27,11 @@ def login():
         p = st.text_input("Password", type="password")
         ok = st.form_submit_button("Sign in")
     if ok:
-        good_u = st.secrets.get("auth", {}).get("username", "")
-        good_p = st.secrets.get("auth", {}).get("password", "")
+        try:
+            good_u = st.secrets["auth"]["username"]
+            good_p = st.secrets["auth"]["password"]
+        except Exception:  # no secrets configured: fall back to defaults
+            good_u, good_p = "admin", "smit123"
         if hmac.compare_digest(u, good_u) and hmac.compare_digest(p, good_p):
             st.session_state["auth"] = True
             st.rerun()
@@ -41,7 +44,12 @@ if not login():
 # ---------- Cached resources ----------
 @st.cache_resource
 def load():
-    model = joblib.load("model.joblib")
+    try:
+        model = joblib.load("model.joblib")
+    except Exception:  # library version mismatch: retrain once on the server
+        import subprocess, sys
+        subprocess.run([sys.executable, "train_model.py"], check=True)
+        model = joblib.load("model.joblib")
     meta = json.load(open("metrics.json"))
     bg = pd.read_csv("background.csv")
     f = lambda X: model.predict_proba(pd.DataFrame(X, columns=FEATURES))[:, 1]
